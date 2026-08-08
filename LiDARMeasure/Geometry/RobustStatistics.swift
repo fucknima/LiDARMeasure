@@ -23,7 +23,8 @@ enum RobustStatistics {
         guard finite.count >= 4 else { return nil }
         let middle = finite.count / 2
         let lower = Array(finite[..<middle])
-        let upper = Array(finite[(finite.count + 1) / 2...])
+        let upperStart = (finite.count + 1) / 2
+        let upper = Array(finite[upperStart..<finite.count])
         guard let q1 = median(lower), let q3 = median(upper) else { return nil }
         return (q1, q3)
     }

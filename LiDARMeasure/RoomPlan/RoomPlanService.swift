@@ -7,7 +7,8 @@ import SwiftUI
 @available(iOS 17.0, *)
 @MainActor
 final class RoomPlanService: NSObject, ObservableObject, RoomCaptureSessionDelegate {
-    let session = RoomCaptureSession()
+    private var session: RoomCaptureSession?
+    private var startWhenAttached = false
 
     @Published private(set) var measurements: [RoomPlanMeasurement] = []
     @Published private(set) var isScanning = false
@@ -15,7 +16,14 @@ final class RoomPlanService: NSObject, ObservableObject, RoomCaptureSessionDeleg
 
     override init() {
         super.init()
+    }
+
+    func attach(to session: RoomCaptureSession) {
+        self.session = session
         session.delegate = self
+        if startWhenAttached {
+            start()
+        }
     }
 
     func start() {
@@ -23,17 +31,24 @@ final class RoomPlanService: NSObject, ObservableObject, RoomCaptureSessionDeleg
             lastError = "当前设备不支持 RoomPlan"
             return
         }
+        guard let session else {
+            startWhenAttached = true
+            return
+        }
+        startWhenAttached = false
         session.run(configuration: RoomCaptureSession.Configuration())
         isScanning = true
         lastError = nil
     }
 
     func stop() {
-        session.stop()
+        startWhenAttached = false
+        session?.stop()
         isScanning = false
     }
 
     func reset() {
+        startWhenAttached = false
         measurements.removeAll()
         lastError = nil
     }
@@ -84,7 +99,7 @@ struct RoomCaptureViewContainer: UIViewRepresentable {
 
     func makeUIView(context: Context) -> RoomCaptureView {
         let view = RoomCaptureView(frame: .zero)
-        view.captureSession = service.session
+        service.attach(to: view.captureSession)
         return view
     }
 
