@@ -92,8 +92,13 @@ struct MeasurementQuality: Codable, Equatable {
 
         let pointScore = min(1, Float(pointCount) / 200)
         let trackingScore = trackingState == "正常" ? 1 : 0.45
-        let score = (depthConfidence * 0.4) + (pointScore * 0.2) + (stability * 0.25) +
-            (distanceScore * 0.1) + (trackingScore * 0.05)
+        let confidenceScore = depthConfidence * 0.4
+        let pointCountScore = pointScore * 0.2
+        let stabilityScore = stability * 0.25
+        let distanceQualityScore = distanceScore * 0.1
+        let trackingQualityScore = trackingScore * 0.05
+        let score = confidenceScore + pointCountScore + stabilityScore +
+            distanceQualityScore + trackingQualityScore
 
         let grade: Grade
         if score >= 0.78 { grade = .excellent }
@@ -119,4 +124,3 @@ struct Point3D: Sendable, Equatable {
         self.confidence = confidence
     }
 }
-

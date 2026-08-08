@@ -254,7 +254,11 @@ final class MeasureViewModel: ObservableObject {
         sessionManager.setPointCount(points.count)
         // ARKit's world coordinate system is gravity-aligned for the default
         // world-tracking configuration, so world Y is the stable height axis.
-        guard let box = MeasurementGeometry.orientedBoundingBox(for: points, gravity: SIMD3(0, 1, 0)) else {
+        let pointValues = points.map(\.value)
+        guard let box = MeasurementGeometry.orientedBoundingBox(
+            for: pointValues,
+            gravity: SIMD3<Float>(0, 1, 0)
+        ) else {
             statusMessage = "没有足够的有效点，请调整距离或框选物体"
             quality = .evaluate(
                 trackingState: sessionManager.trackingState,

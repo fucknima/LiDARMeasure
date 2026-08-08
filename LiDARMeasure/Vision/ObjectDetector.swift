@@ -17,7 +17,9 @@ final class ObjectDetector {
         return VisionObjectObservation(
             identifier: observation.identifier,
             confidence: observation.confidence,
-            boundingBox: observation.boundingBox
+            // Classification observations do not carry a region of interest;
+            // treat the full frame as the fallback selection.
+            boundingBox: CGRect(x: 0, y: 0, width: 1, height: 1)
         )
     }
 }

@@ -23,7 +23,7 @@ enum MeasurementGeometry {
     }
 
     static func aabb(for points: [SIMD3<Float>]) -> MeasurementDimensions? {
-        let valid = points.filter { $0.allSatisfy(\.isFinite) }
+        let valid = points.filter { isFiniteVector($0) }
         guard let first = valid.first else { return nil }
         var minValue = first
         var maxValue = first
@@ -36,29 +36,32 @@ enum MeasurementGeometry {
     }
 
     static func filterOutliers(_ points: [Point3D], multiplier: Float = 3) -> [Point3D] {
-        let valid = points.filter { $0.value.allSatisfy(\.isFinite) }
+        let valid = points.filter { isFiniteVector($0.value) }
         guard valid.count >= 8 else { return valid }
         let center = valid.reduce(SIMD3<Float>.zero) { $0 + $1.value } / Float(valid.count)
         let distances = valid.map { simd_distance($0.value, center) }
         guard let median = RobustStatistics.median(distances),
               let mad = RobustStatistics.mad(distances),
-              mad > .ulpOfOne else { return valid }
+              mad > Float.ulpOfOne else { return valid }
         let limit = median + multiplier * 1.4826 * mad
         return valid.filter { simd_distance($0.value, center) <= limit }
     }
 
     static func orientedBoundingBox(
         for points: [SIMD3<Float>],
-        gravity: SIMD3<Float> = SIMD3(0, 1, 0)
+        gravity: SIMD3<Float> = SIMD3<Float>(0, 1, 0)
     ) -> OrientedBoundingBox? {
-        let validPoints = points.filter { $0.allSatisfy(\.isFinite) }
+        let validPoints = points.filter { isFiniteVector($0) }
         guard validPoints.count >= 4 else { return nil }
 
         let center = validPoints.reduce(SIMD3<Float>.zero, +) / Float(validPoints.count)
-        let up = normalizedOrFallback(gravity, fallback: SIMD3(0, 1, 0))
-        let reference = abs(simd_dot(up, SIMD3(0, 0, 1))) > 0.9 ? SIMD3(1, 0, 0) : SIMD3(0, 0, 1)
-        let forward = normalizedOrFallback(reference - up * simd_dot(reference, up), fallback: SIMD3(0, 0, 1))
-        let right = normalizedOrFallback(simd_cross(up, forward), fallback: SIMD3(1, 0, 0))
+        let up = normalizedOrFallback(gravity, fallback: SIMD3<Float>(0, 1, 0))
+        let zAxis = SIMD3<Float>(0, 0, 1)
+        let xAxis = SIMD3<Float>(1, 0, 0)
+        let reference = abs(simd_dot(up, zAxis)) > 0.9 ? xAxis : zAxis
+        let projectedReference = reference - up * simd_dot(reference, up)
+        let forward = normalizedOrFallback(projectedReference, fallback: zAxis)
+        let right = normalizedOrFallback(simd_cross(up, forward), fallback: xAxis)
 
         // A 2D PCA on the plane orthogonal to gravity. The closed-form angle
         // for a symmetric 2x2 covariance matrix avoids an unstable custom solver.
@@ -74,7 +77,9 @@ enum MeasurementGeometry {
             covarianceZZ += z * z
         }
         let angle = 0.5 * atan2(2 * covarianceXZ, covarianceXX - covarianceZZ)
-        let horizontalA = normalizedOrFallback(right * cos(angle) + forward * sin(angle), fallback: right)
+        let rotatedRight = right * cos(angle)
+        let rotatedForward = forward * sin(angle)
+        let horizontalA = normalizedOrFallback(rotatedRight + rotatedForward, fallback: right)
         let horizontalB = normalizedOrFallback(simd_cross(up, horizontalA), fallback: forward)
         let axes = simd_float3x3(columns: (horizontalA, up, horizontalB))
 
@@ -96,7 +101,7 @@ enum MeasurementGeometry {
             height: maxProjection.y - minProjection.y,
             depth: maxProjection.z - minProjection.z
         )
-        let localCenter = (minProjection + maxProjection) / 2
+        let localCenter = (minProjection + maxProjection) * 0.5
         let worldCenter = center + axes * localCenter
         let corners = Self.corners(center: worldCenter, axes: axes, dimensions: dimensions)
         return OrientedBoundingBox(center: worldCenter, axes: axes, dimensions: dimensions, corners: corners)
@@ -107,11 +112,13 @@ enum MeasurementGeometry {
         axes: simd_float3x3,
         dimensions: MeasurementDimensions
     ) -> [SIMD3<Float>] {
-        let half = SIMD3(dimensions.width, dimensions.height, dimensions.depth) / 2
-        return [-1, 1].flatMap { x in
-            [-1, 1].flatMap { y in
-                [-1, 1].map { z in
-                    center + axes * (SIMD3(Float(x), Float(y), Float(z)) * half)
+        let half = SIMD3<Float>(dimensions.width, dimensions.height, dimensions.depth) * 0.5
+        let signs: [Float] = [-1, 1]
+        return signs.flatMap { x in
+            signs.flatMap { y in
+                signs.map { z in
+                    let localCorner = SIMD3<Float>(x, y, z) * half
+                    return center + axes * localCorner
                 }
             }
         }
@@ -119,6 +126,10 @@ enum MeasurementGeometry {
 
     private static func normalizedOrFallback(_ value: SIMD3<Float>, fallback: SIMD3<Float>) -> SIMD3<Float> {
         let length = simd_length(value)
-        return length > .ulpOfOne && length.isFinite ? value / length : fallback
+        return length > Float.ulpOfOne && length.isFinite ? value / length : fallback
+    }
+
+    private static func isFiniteVector(_ value: SIMD3<Float>) -> Bool {
+        value.x.isFinite && value.y.isFinite && value.z.isFinite
     }
 }
