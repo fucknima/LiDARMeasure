@@ -33,16 +33,20 @@ final class MeasureViewModel: ObservableObject {
     private var viewportSize: CGSize = .zero
 
     init(
-        sessionManager: ARSessionManager = ARSessionManager(),
-        roomPlanService: RoomPlanService = RoomPlanService(),
-        storage: MeasurementStorage = MeasurementStorage(),
-        unitSettings: UnitSettings = UnitSettings()
+        sessionManager: ARSessionManager? = nil,
+        roomPlanService: RoomPlanService? = nil,
+        storage: MeasurementStorage? = nil,
+        unitSettings: UnitSettings? = nil
     ) {
-        self.sessionManager = sessionManager
-        self.roomPlanService = roomPlanService
-        self.storage = storage
-        self.unitSettings = unitSettings
-        sessionManager.frameHandler = { [weak self] frame in
+        // Instantiate the main-actor services inside the actor-isolated
+        // initializer. Default argument expressions are evaluated before
+        // entering the actor, so constructing them in the signature breaks
+        // Swift 6 concurrency checking.
+        self.sessionManager = sessionManager ?? ARSessionManager()
+        self.roomPlanService = roomPlanService ?? RoomPlanService()
+        self.storage = storage ?? MeasurementStorage()
+        self.unitSettings = unitSettings ?? UnitSettings()
+        self.sessionManager.frameHandler = { [weak self] frame in
             self?.process(frame: frame)
         }
     }
