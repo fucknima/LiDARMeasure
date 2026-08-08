@@ -1,5 +1,6 @@
 import RealityKit
 import simd
+import UIKit
 
 @MainActor
 final class ARRenderer {
