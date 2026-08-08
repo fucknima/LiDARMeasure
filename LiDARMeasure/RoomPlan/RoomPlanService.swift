@@ -55,6 +55,13 @@ final class RoomPlanService: NSObject, ObservableObject, RoomCaptureSessionDeleg
         // snapshot from `didUpdate` instead of replacing it with that subset.
     }
 
+    func captureSession(_ session: RoomCaptureSession, didEndWith data: CapturedRoomData, error: (any Error)?) {
+        isScanning = false
+        if let error {
+            lastError = "RoomPlan：\(error.localizedDescription)"
+        }
+    }
+
     private func update(_ room: CapturedRoom) {
         measurements = room.objects.map { object in
             let dimensions = MeasurementDimensions(

@@ -1,4 +1,5 @@
 import CoreImage
+import CoreVideo
 import Vision
 
 struct VisionObjectObservation: Equatable, Sendable {
@@ -20,4 +21,3 @@ final class ObjectDetector {
         )
     }
 }
-

@@ -1,4 +1,5 @@
 import ARKit
+import CoreGraphics
 import CoreVideo
 import simd
 

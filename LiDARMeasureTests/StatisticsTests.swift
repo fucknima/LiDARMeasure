@@ -5,8 +5,8 @@ import simd
 final class StatisticsTests: XCTestCase {
     func testMedianAndMADIgnoreNonFiniteValues() {
         let values: [Float] = [1, 2, 3, 100, .infinity, .nan]
-        XCTAssertEqual(RobustStatistics.median(values), 2.5, accuracy: 0.0001)
-        XCTAssertEqual(RobustStatistics.mad(values), 1, accuracy: 0.0001)
+        XCTAssertEqual(RobustStatistics.median(values) ?? 0, 2.5, accuracy: 0.0001)
+        XCTAssertEqual(RobustStatistics.mad(values) ?? 0, 1, accuracy: 0.0001)
     }
 
     func testIQRFilterRemovesExtremeOutlier() {
