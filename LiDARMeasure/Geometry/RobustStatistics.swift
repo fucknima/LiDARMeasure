@@ -14,8 +14,8 @@ enum RobustStatistics {
     }
 
     static func mad(_ values: [Float]) -> Float? {
-        guard let median = median(values) else { return nil }
-        return median(values.map { abs($0 - median) })
+        guard let center = median(values) else { return nil }
+        return median(values.map { abs($0 - center) })
     }
 
     static func quartiles(_ values: [Float]) -> (q1: Float, q3: Float)? {
@@ -34,20 +34,20 @@ enum RobustStatistics {
     }
 
     static func filterByMAD(_ values: [Float], multiplier: Float = 3) -> [Float] {
-        guard let center = median(values), let mad = mad(values), mad > .ulpOfOne else {
+        guard let center = median(values), let deviation = mad(values), deviation > .ulpOfOne else {
             return values.filter(\.isFinite)
         }
-        let scale = 1.4826 * mad
+        let scale = 1.4826 * deviation
         return values.filter { $0.isFinite && abs($0 - center) <= multiplier * scale }
     }
 
     static func filterByIQR(_ values: [Float], multiplier: Float = 1.5) -> [Float] {
-        guard let quartiles = quartiles(values) else {
+        guard let quartileValues = quartiles(values) else {
             return values.filter(\.isFinite)
         }
-        let range = quartiles.q3 - quartiles.q1
-        let lower = quartiles.q1 - multiplier * range
-        let upper = quartiles.q3 + multiplier * range
+        let range = quartileValues.q3 - quartileValues.q1
+        let lower = quartileValues.q1 - multiplier * range
+        let upper = quartileValues.q3 + multiplier * range
         return values.filter { $0.isFinite && $0 >= lower && $0 <= upper }
     }
 
@@ -59,4 +59,3 @@ enum RobustStatistics {
         return result
     }
 }
-

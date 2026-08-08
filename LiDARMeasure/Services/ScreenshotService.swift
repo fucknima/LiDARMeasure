@@ -42,11 +42,11 @@ final class ScreenshotService {
             throw ScreenshotError.photoLibraryDenied
         }
 
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             PHPhotoLibrary.shared().performChanges({
                 PHAssetChangeRequest.creationRequestForAsset(from: image)
             }) { success, error in
-                if success { continuation.resume() }
+                if success { continuation.resume(returning: ()) }
                 else { continuation.resume(throwing: ScreenshotError.saveFailed(error ?? CocoaError(.fileWriteUnknown))) }
             }
         }

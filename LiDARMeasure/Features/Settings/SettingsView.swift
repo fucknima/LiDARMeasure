@@ -7,7 +7,10 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("单位") {
-                    Picker("显示单位", selection: $model.unitSettings.unit) {
+                    Picker("显示单位", selection: Binding(
+                        get: { model.unitSettings.unit },
+                        set: { model.unitSettings.unit = $0 }
+                    )) {
                         ForEach(MeasurementUnit.allCases) { unit in
                             Text(unit.title).tag(unit)
                         }
@@ -47,4 +50,3 @@ private struct CapabilityRow: View {
             .foregroundStyle(supported ? .green : .secondary)
     }
 }
-
