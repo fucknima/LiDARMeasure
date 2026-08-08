@@ -90,8 +90,8 @@ struct MeasurementQuality: Codable, Equatable {
             distanceScore = 0.6
         }
 
-        let pointScore = min(1, Float(pointCount) / 200)
-        let trackingScore = trackingState == "正常" ? 1 : 0.45
+        let pointScore: Float = min(1, Float(pointCount) / 200)
+        let trackingScore: Float = trackingState == "正常" ? 1 : 0.45
         let confidenceScore = depthConfidence * 0.4
         let pointCountScore = pointScore * 0.2
         let stabilityScore = stability * 0.25
