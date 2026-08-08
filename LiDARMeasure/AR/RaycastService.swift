@@ -38,7 +38,12 @@ struct RaycastService {
 
         let camera = frame.camera
         let intrinsics = camera.intrinsics
-        let cameraPoint = intrinsics.inverse * SIMD3(Float(depthPixel.x), Float(depthPixel.y), 1) * depth
+        let cameraWidth = Float(CVPixelBufferGetWidth(frame.capturedImage))
+        let cameraHeight = Float(CVPixelBufferGetHeight(frame.capturedImage))
+        let scaleX = cameraWidth / Float(width)
+        let scaleY = cameraHeight / Float(height)
+        let cameraPixel = SIMD3(Float(depthPixel.x) * scaleX, Float(depthPixel.y) * scaleY, 1)
+        let cameraPoint = intrinsics.inverse * cameraPixel * depth
         let world = camera.transform * SIMD4(cameraPoint, 1)
         return (SIMD3(world.x, world.y, world.z), confidence, depth)
     }

@@ -1,4 +1,5 @@
 import XCTest
+import simd
 @testable import LiDARMeasure
 
 final class StatisticsTests: XCTestCase {
@@ -14,5 +15,13 @@ final class StatisticsTests: XCTestCase {
         XCTAssertFalse(filtered.contains(100))
         XCTAssertEqual(filtered.count, 5)
     }
-}
 
+    func testPointCloudOutlierFilterRemovesFarPoint() {
+        var points = (0..<20).map { index in
+            Point3D(SIMD3<Float>(Float(index % 4) * 0.01, Float(index / 4) * 0.01, 1))
+        }
+        points.append(Point3D(SIMD3<Float>(10, 10, 10)))
+        let filtered = MeasurementGeometry.filterOutliers(points)
+        XCTAssertEqual(filtered.count, 20)
+    }
+}

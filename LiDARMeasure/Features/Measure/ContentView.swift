@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var model: MeasureViewModel
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingHistory = false
     @State private var showingSettings = false
 
@@ -23,6 +24,17 @@ struct ContentView: View {
 
                     VStack(spacing: 12) {
                         topBar
+                        if let error = model.sessionManager.lastError {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                Text(error).font(.caption)
+                                Spacer()
+                                Button("重试") { model.sessionManager.clearError(); model.sessionManager.start() }
+                            }
+                            .padding(10)
+                            .foregroundStyle(.white)
+                            .background(.red.opacity(0.75), in: RoundedRectangle(cornerRadius: 12))
+                        }
                         Spacer()
                         if let selectionRect = model.selectionRect {
                             Rectangle()
@@ -53,6 +65,16 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingHistory) { HistoryView(storage: model.storage) }
             .sheet(isPresented: $showingSettings) { SettingsView(model: model) }
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .active:
+                    if model.mode != .roomScan { model.sessionManager.start() }
+                case .background, .inactive:
+                    model.sessionManager.pause()
+                @unknown default:
+                    break
+                }
+            }
         }
     }
 
@@ -123,11 +145,16 @@ struct ContentView: View {
     private var controls: some View {
         VStack(spacing: 10) {
             Picker("模式", selection: $model.mode) {
-                ForEach(MeasurementMode.allCases) { mode in Text(mode.title).tag(mode) }
+                ForEach(MeasurementMode.allCases) { mode in
+                    Text(mode.title).tag(mode).disabled(mode == .roomScan && !model.capabilities.roomPlanAvailable)
+                }
             }
             .pickerStyle(.segmented)
 
             HStack(spacing: 12) {
+                if model.mode == .roomScan {
+                    Button("结束扫描", systemImage: "stop.circle", action: model.stopRoomScan)
+                }
                 Button("撤销", systemImage: "arrow.uturn.backward", action: model.undo)
                 Button("清除", systemImage: "xmark.circle", action: model.clearMeasurement)
                 Button("保存", systemImage: "square.and.arrow.down") {
@@ -179,4 +206,3 @@ private struct CrosshairView: View {
         .allowsHitTesting(false)
     }
 }
-

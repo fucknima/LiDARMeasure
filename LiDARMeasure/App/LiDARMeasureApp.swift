@@ -1,6 +1,7 @@
 import SwiftUI
 
 @main
+@MainActor
 struct LiDARMeasureApp: App {
     @StateObject private var model = MeasureViewModel()
 
@@ -11,4 +12,3 @@ struct LiDARMeasureApp: App {
         }
     }
 }
-

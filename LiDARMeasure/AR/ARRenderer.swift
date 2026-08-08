@@ -24,6 +24,18 @@ final class ARRenderer {
         anchor.addChild(sphere(at: end, color: color, radius: 0.012))
     }
 
+    func showManualDimensions(points: [SIMD3<Float>], color: UIColor = .systemYellow) {
+        guard points.count >= 4 else { return }
+        clear()
+        let edges = [(0, 1), (0, 2), (0, 3)]
+        for (start, end) in edges {
+            anchor.addChild(lineEntity(from: points[start], to: points[end], color: color, thickness: 0.006))
+        }
+        for point in points.prefix(4) {
+            anchor.addChild(sphere(at: point, color: color, radius: 0.012))
+        }
+    }
+
     func showBoundingBox(_ box: OrientedBoundingBox, color: UIColor = .systemGreen) {
         clear()
         let edges: [(Int, Int)] = [
@@ -54,4 +66,3 @@ final class ARRenderer {
         return entity
     }
 }
-

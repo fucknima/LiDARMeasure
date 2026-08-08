@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import RoomPlan
 import simd
+import SwiftUI
 
 @available(iOS 17.0, *)
 @MainActor
@@ -50,7 +51,8 @@ final class RoomPlanService: NSObject, ObservableObject, RoomCaptureSessionDeleg
     }
 
     func captureSession(_ session: RoomCaptureSession, didRemove room: CapturedRoom) {
-        update(room)
+        // `didRemove` contains only the removed subset. Keep the latest full
+        // snapshot from `didUpdate` instead of replacing it with that subset.
     }
 
     private func update(_ room: CapturedRoom) {
@@ -60,7 +62,11 @@ final class RoomPlanService: NSObject, ObservableObject, RoomCaptureSessionDeleg
                 height: abs(object.dimensions.y),
                 depth: abs(object.dimensions.z)
             )
-            return RoomPlanMeasurement(category: String(describing: object.category), dimensions: dimensions)
+            return RoomPlanMeasurement(
+                category: String(describing: object.category),
+                dimensions: dimensions,
+                transform: object.transform
+            )
         }
     }
 }

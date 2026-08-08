@@ -8,6 +8,7 @@ struct PointCloudBuilder {
         var minimumConfidence: Float = 0.5
         var depthBand: ClosedRange<Float>?
         var roi: CGRect?
+        var foregroundMask: CVPixelBuffer?
     }
 
     func build(from frame: ARFrame, configuration: Configuration = .init()) -> [Point3D] {
@@ -16,17 +17,37 @@ struct PointCloudBuilder {
         let confidenceMap = depthData.confidenceMap
         let width = CVPixelBufferGetWidth(depthMap)
         let height = CVPixelBufferGetHeight(depthMap)
+        let cameraScaleX = Float(CVPixelBufferGetWidth(frame.capturedImage)) / Float(width)
+        let cameraScaleY = Float(CVPixelBufferGetHeight(frame.capturedImage)) / Float(height)
+        let mask = configuration.foregroundMask
+        if let mask { CVPixelBufferLockBaseAddress(mask, .readOnly) }
 
         CVPixelBufferLockBaseAddress(depthMap, .readOnly)
         if let confidenceMap { CVPixelBufferLockBaseAddress(confidenceMap, .readOnly) }
         defer {
             CVPixelBufferUnlockBaseAddress(depthMap, .readOnly)
             if let confidenceMap { CVPixelBufferUnlockBaseAddress(confidenceMap, .readOnly) }
+            if let mask { CVPixelBufferUnlockBaseAddress(mask, .readOnly) }
         }
 
         guard let depthBase = CVPixelBufferGetBaseAddress(depthMap) else { return [] }
         let depthStride = CVPixelBufferGetBytesPerRow(depthMap) / MemoryLayout<Float32>.stride
         let depthValues = depthBase.assumingMemoryBound(to: Float32.self)
+        let maskValues: UnsafeMutablePointer<UInt8>?
+        let maskWidth: Int
+        let maskHeight: Int
+        let maskStride: Int
+        if let mask, let base = CVPixelBufferGetBaseAddress(mask) {
+            maskValues = base.assumingMemoryBound(to: UInt8.self)
+            maskWidth = CVPixelBufferGetWidth(mask)
+            maskHeight = CVPixelBufferGetHeight(mask)
+            maskStride = CVPixelBufferGetBytesPerRow(mask)
+        } else {
+            maskValues = nil
+            maskWidth = 0
+            maskHeight = 0
+            maskStride = 0
+        }
 
         let confidenceValues: UnsafeMutablePointer<UInt8>?
         let confidenceStride: Int
@@ -50,6 +71,11 @@ struct PointCloudBuilder {
                     let normalized = CGPoint(x: CGFloat(x) / CGFloat(width), y: CGFloat(y) / CGFloat(height))
                     guard roi.contains(normalized) else { continue }
                 }
+                if let maskValues, maskWidth > 0, maskHeight > 0 {
+                    let maskX = min(maskWidth - 1, x * maskWidth / width)
+                    let maskY = min(maskHeight - 1, y * maskHeight / height)
+                    guard maskValues[maskY * maskStride + maskX] > 0 else { continue }
+                }
                 let depth = depthValues[y * depthStride + x]
                 guard depth.isFinite, depth > 0 else { continue }
                 if let depthBand = configuration.depthBand, !depthBand.contains(depth) { continue }
@@ -62,7 +88,11 @@ struct PointCloudBuilder {
                 }
                 guard confidence >= configuration.minimumConfidence else { continue }
 
-                let cameraPoint = intrinsics.inverse * SIMD3(Float(x), Float(y), 1) * depth
+                let cameraPoint = intrinsics.inverse * SIMD3(
+                    Float(x) * cameraScaleX,
+                    Float(y) * cameraScaleY,
+                    1
+                ) * depth
                 let worldPoint = cameraTransform * SIMD4(cameraPoint, 1)
                 result.append(Point3D(SIMD3(worldPoint.x, worldPoint.y, worldPoint.z), confidence: confidence))
             }

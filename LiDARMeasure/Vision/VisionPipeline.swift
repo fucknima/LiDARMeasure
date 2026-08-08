@@ -2,9 +2,11 @@ import ARKit
 import CoreVideo
 import Vision
 
-struct VisionPipelineResult: Equatable, Sendable {
+struct VisionPipelineResult {
     let observation: VisionObjectObservation?
-    let hasForegroundMask: Bool
+    let foregroundMask: CVPixelBuffer?
+
+    var hasForegroundMask: Bool { foregroundMask != nil }
 }
 
 final class VisionPipeline {
@@ -25,15 +27,14 @@ final class VisionPipeline {
 
         do {
             let observation = try detector.detect(pixelBuffer: frame.capturedImage)
-            var hasMask = false
+            var foregroundMask: CVPixelBuffer?
             if let segmenter {
-                hasMask = (try? segmenter.mask(pixelBuffer: frame.capturedImage)) != nil
+                foregroundMask = try? segmenter.mask(pixelBuffer: frame.capturedImage)
             }
-            return VisionPipelineResult(observation: observation, hasForegroundMask: hasMask)
+            return VisionPipelineResult(observation: observation, foregroundMask: foregroundMask)
         } catch {
             AppLogger.vision.error("Vision analysis failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
 }
-

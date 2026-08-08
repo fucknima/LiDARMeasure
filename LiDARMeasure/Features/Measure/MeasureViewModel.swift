@@ -100,6 +100,7 @@ final class MeasureViewModel: ObservableObject {
                 let depth = MeasurementGeometry.distance(selectedPoints[0], selectedPoints[3])
                 currentDimensions = MeasurementDimensions(width: width, height: height, depth: depth)
                 currentDistanceMeters = nil
+                sessionManager.renderer.showManualDimensions(points: selectedPoints)
                 statusMessage = "长宽高已计算"
             } else {
                 statusMessage = "依次点击左下、右下、左上和后角（\(selectedPoints.count)/4）"
@@ -163,7 +164,7 @@ final class MeasureViewModel: ObservableObject {
         defer { isSaving = false }
 
         var screenshotPath: String?
-        if let arView = sessionManager.arView, let image = screenshotService.capture(view: arView) {
+        if let image = screenshotService.captureCurrentScreen() ?? sessionManager.arView.flatMap({ screenshotService.capture(view: $0) }) {
             screenshotPath = try? screenshotService.saveToDocuments(image)
             do { try await screenshotService.saveToPhotos(image) }
             catch { AppLogger.measure.error("Photo save skipped: \(error.localizedDescription, privacy: .public)") }
@@ -204,8 +205,14 @@ final class MeasureViewModel: ObservableObject {
     private func modeDidChange(oldValue: MeasurementMode) {
         guard oldValue != mode else { return }
         clearMeasurement()
-        if oldValue == .roomScan { roomPlanService.stop() }
-        if mode == .roomScan { startRoomScan() }
+        if oldValue == .roomScan {
+            roomPlanService.stop()
+            sessionManager.start()
+        }
+        if mode == .roomScan {
+            sessionManager.pause()
+            startRoomScan()
+        }
     }
 
     private func process(frame: ARFrame) {
@@ -232,12 +239,14 @@ final class MeasureViewModel: ObservableObject {
         }
 
         let band = pointCloudBuilder.foregroundBand(around: depthSample.depth)
-        let points = pointCloudBuilder.build(from: frame, configuration: .init(
+        let rawPoints = pointCloudBuilder.build(from: frame, configuration: .init(
             stride: 5,
             minimumConfidence: 0.5,
             depthBand: band,
-            roi: roi
+            roi: roi,
+            foregroundMask: vision?.foregroundMask
         ))
+        let points = MeasurementGeometry.filterOutliers(rawPoints)
         sessionManager.setPointCount(points.count)
         // ARKit's world coordinate system is gravity-aligned for the default
         // world-tracking configuration, so world Y is the stable height axis.

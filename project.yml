@@ -13,7 +13,6 @@ settings:
     SWIFT_VERSION: "5.10"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    SWIFT_OPTIMIZATION_LEVEL: "-Onone"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
 
 targets:
@@ -22,6 +21,9 @@ targets:
     platform: iOS
     sources:
       - path: LiDARMeasure
+        excludes:
+          - Supporting/Info.plist
+          - Supporting/Assets.xcassets
     resources:
       - path: LiDARMeasure/Supporting/Assets.xcassets
     settings:

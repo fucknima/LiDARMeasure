@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-struct OrientedBoundingBox: Equatable {
+struct OrientedBoundingBox {
     let center: SIMD3<Float>
     let axes: simd_float3x3
     let dimensions: MeasurementDimensions
@@ -23,15 +23,28 @@ enum MeasurementGeometry {
     }
 
     static func aabb(for points: [SIMD3<Float>]) -> MeasurementDimensions? {
-        guard let first = points.first else { return nil }
+        let valid = points.filter { $0.allSatisfy(\.isFinite) }
+        guard let first = valid.first else { return nil }
         var minValue = first
         var maxValue = first
-        for point in points.dropFirst() where point.allSatisfy(\.isFinite) {
+        for point in valid.dropFirst() {
             minValue = simd_min(minValue, point)
             maxValue = simd_max(maxValue, point)
         }
         let size = maxValue - minValue
         return MeasurementDimensions(width: abs(size.x), height: abs(size.y), depth: abs(size.z))
+    }
+
+    static func filterOutliers(_ points: [Point3D], multiplier: Float = 3) -> [Point3D] {
+        let valid = points.filter { $0.value.allSatisfy(\.isFinite) }
+        guard valid.count >= 8 else { return valid }
+        let center = valid.reduce(SIMD3<Float>.zero) { $0 + $1.value } / Float(valid.count)
+        let distances = valid.map { simd_distance($0.value, center) }
+        guard let median = RobustStatistics.median(distances),
+              let mad = RobustStatistics.mad(distances),
+              mad > .ulpOfOne else { return valid }
+        let limit = median + multiplier * 1.4826 * mad
+        return valid.filter { simd_distance($0.value, center) <= limit }
     }
 
     static func orientedBoundingBox(

@@ -74,7 +74,7 @@ final class ARSessionManager: NSObject, ObservableObject {
         case .normal:
             trackingState = "正常"
         case .limited(let reason):
-            trackingState = "受限：\(reason.localizedDescription)"
+            trackingState = "受限：\(String(describing: reason))"
         case .notAvailable:
             trackingState = "不可用"
         @unknown default:

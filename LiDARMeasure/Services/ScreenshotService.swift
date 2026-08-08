@@ -19,6 +19,15 @@ enum ScreenshotError: LocalizedError {
 
 @MainActor
 final class ScreenshotService {
+    func captureCurrentScreen() -> UIImage? {
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
+        guard let window else { return nil }
+        return capture(view: window)
+    }
+
     func capture(view: UIView) -> UIImage? {
         guard view.bounds.width > 0, view.bounds.height > 0 else { return nil }
         let renderer = UIGraphicsImageRenderer(bounds: view.bounds)
@@ -52,4 +61,3 @@ final class ScreenshotService {
         return fileURL.path
     }
 }
-
